@@ -1,15 +1,15 @@
 # **BLE Commissioning Service with ECDH and AES-GCM**
 
-This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Low Energy)** to allow devices like a Linux server or SBC (like a raspberry pi) to be **commissioned** securely with encrypted network credentials using **asymmetric** cryptography (ECDH with Ed448) for the shared key and **symmetric** encryption (AES-256 in GCM mode) for sending credentials. The service advertises the public key over BLE, allowing a client (e.g., a Mobile application) to securely encrypt credentials that can only be decrypted by the server in a one way transaction. Protection measures are also improved through server side public key cycling if an unsuccessful commissioning attempt occurs and message authentication codes in the encrypted AES payload to prevent attacks. Furthermore, the selected encryption techniques optimize the avaliable resources on edge computers and most BLE protocols with minimal configuration required, streamlining implementation.
+This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Low Energy)** to allow devices like a Linux server or SBC (like a raspberry pi) to be **commissioned** securely with encrypted network credentials using **asymmetric** cryptography (ECDH with ED25519) for the shared key and **symmetric** encryption (AES-256 in GCM mode) for sending credentials. The service advertises the public key over BLE, allowing a client (e.g., a Mobile application) to securely encrypt credentials that can only be decrypted by the server in a one way transaction. Protection measures are also improved through server side public key cycling if an unsuccessful commissioning attempt occurs and message authentication codes in the encrypted AES payload to prevent attacks. Furthermore, the selected encryption techniques optimize the avaliable resources on edge computers and most BLE protocols with minimal configuration required, streamlining implementation.
 
 ## Overview
 --------
 
 ### Key Concepts:
 
-1.  **ECDH (Elliptic Curve Diffie-Hellman) with Ed448 Curve**:
-    -   **ECDH** is an asymmetric cryptography technique used for generating shared secrets between two parties over a public network. In this implementation, the Ed448 curve is chosen for its security and performance benefits. Reference [Edwards-Curve Digital Signature Algorithm (EdDSA) - RFC8032][2]
-    -   **Ed448** is a highly secure elliptic curve, offering a 224-bit security level, which is resistant to both classical and upcoming quantum attacks. You can find more information in the [NIST Status Update on Elliptic Curves and Post-Quantum Cryptography][1].
+1.  **ECDH (Elliptic Curve Diffie-Hellman) with ED25519 Curve**:
+    -   **ECDH** is an asymmetric cryptography technique used for generating shared secrets between two parties over a public network. In this implementation, the ED25519 curve is chosen for its security and performance benefits. Reference [Edwards-Curve Digital Signature Algorithm (EdDSA) - RFC8032][2]
+    -   **ED25519** is a highly secure elliptic curve, offering a 128-bit security level, which is resistant to both classical and newer quantum attacks. You can find more information in the [NIST Status Update on Elliptic Curves and Post-Quantum Cryptography][1].
 2.  **AES-256 in GCM Mode**:
     -   **AES (Advanced Encryption Standard)** is used for symmetric encryption of sensitive data (like passwords). AES-256 refers to the 256-bit key size, providing a high level of security.
     -   **GCM (Galois/Counter Mode)** provides both encryption and integrity, ensuring the data is encrypted while also protecting against tampering.
@@ -22,7 +22,7 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
 
 ### Process Flow:
 1.  **ECDH Key Exchange**:
-    -   The service uses **ECDH** with **Ed448** to generate a public-private key pair on the server.
+    -   The service uses **ECDH** with **ED25519** to generate a public-private key pair on the server.
     -   The server advertises its **public key** as a BLE characteristic.
     -   The client (e.g., a smartphone application) retrieves this **public key**.
 2.  **Client Key Generation**:
@@ -44,7 +44,7 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
 ### Mathematical Concepts Explained:
 -   **Elliptic Curve Diffie-Hellman (ECDH)**:
     -   ECDH allows two parties (server and client) to establish a shared secret over an insecure channel.
-    -   Both parties generate key pairs using the elliptic curve Ed448.
+    -   Both parties generate key pairs using the elliptic curve ED25519.
     -   The server's private key $$k_{\text{server}}$$ and public key $$P_{\text{server}} = k_{\text{server}} \cdot G$$ where $$G$$ is the agreed generator point on the curve.
     -   The client's private key $$k_{\text{client}}$$ and public key $$P_{\text{client}} = k_{\text{client}} \cdot G$$.
     -   The shared secret is derived as: $$S_{\text{shared}} = k_{\text{server}} \cdot P_{\text{client}} = k_{\text{client}} \cdot P_{\text{server}}$$
@@ -54,10 +54,10 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
     -   Encryption uses the shared secret from ECDH as the AES key, ensuring that only devices with the matching shared secret can decrypt the message.
 
 ### Security Considerations:
-1.  **Elliptic Curve Ed448**:
-    -   Ed448 is a highly secure elliptic curve, resistant to many classical and quantum attacks. Its use ensures strong protection against potential vulnerabilities in lower-security curves like P-256.
+1.  **Elliptic Curve ED25519**:
+    -   ED25519 is a highly secure elliptic curve, resistant to many classical and quantum attacks. Its use ensures strong protection against potential vulnerabilities in lower-security curves like P-256.
 2.  **Asymmetric Key Generation and Exchange**:
-    -   The use of ECDH with Ed448 allows the creation of a shared secret that never needs to be transmitted over the air, significantly reducing the risk of interception by an attacker.
+    -   The use of ECDH with ED25519 allows the creation of a shared secret that never needs to be transmitted over the air, significantly reducing the risk of interception by an attacker.
 3.  **AES-256 Encryption**:
     -   AES-256 provides a high level of security, and when combined with GCM, it ensures that data is both confidential and tamper-resistant to many common attacks.
 4.  **Public Key Hashing**:
@@ -69,8 +69,8 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
 | --- | --- | --- | --- |
 | SSID | Plaintext SSID for the device network | Plaintext | Write |
 | Password | AES-256 GCM encrypted password | Encrypted | Write |
-| Public Key | Server's Ed448 public key, hashed per use | Plaintext | Read |
-| Client Public Key | Client's Ed448 public key, hashed per use | Plaintext | Write |
+| Public Key | Server's ED25519 public key, hashed per use | Plaintext | Read |
+| Client Public Key | Client's ED25519 public key, hashed per use | Plaintext | Write |
 | Client AES Payload | Client's AES Payload, hashed per use | Plaintext | Write |
 ### Future Enhancements:
 
