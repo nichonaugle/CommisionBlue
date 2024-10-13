@@ -1,4 +1,4 @@
-from commision_blue.crypto_utils import ExchangeHandler
+from blu_bird.crypto_utils import ExchangeHandler
 
 crypto_handler = ExchangeHandler()
 

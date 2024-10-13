@@ -1,5 +1,5 @@
 import os
-from commision_blue.crypto_utils import ExchangeHandler, CurveType
+from blu_bird.crypto_utils import ExchangeHandler, CurveType
 
 ## EXAMPLE KEY EXCHANGE FLOW W/ UTILITY USING FILES INSTEAD OF BLE ##
 
