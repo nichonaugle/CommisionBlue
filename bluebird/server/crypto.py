@@ -9,7 +9,7 @@ from typing import Union, Tuple
 
 class CurveType(Enum):
     """
-    CurveType is an enumeration that defines types of cryptographic curves.
+    CurveType is an enumeration that defines types of cryptographic curves. Must be the same for both client and server!
 
     Attributes:
         CURVE25519 (str): Represents the Curve25519 elliptic curve.
@@ -52,8 +52,7 @@ class ExchangeHandler:
             self.private_curve_type = X448PrivateKey
             self.public_curve_type = X448PublicKey
         else:
-            
-            raise ValueError("Unsupported CurveType")
+            raise ValueError("Unsupported CurveType. Select either X25519 or X448")
 
     def generate_key_pair(self) -> Tuple[Union[X25519PrivateKey, X448PrivateKey], bytes]:
         """
@@ -86,36 +85,9 @@ class ExchangeHandler:
             ValueError: If the private key has not been generated.
         """
         if self.private_key is None:
-            raise ValueError("Private key not generated. Call generate_key_pair() first.")
+            raise ValueError("Server private key not generated. Must use generate_key_pair() first.")
 
         return self.private_key.exchange(self.public_curve_type.from_public_bytes(ext_public_key))
-
-    def encrypt_msg(self, shared_key: bytes, msg: bytes) -> tuple[bytes, bytes]:
-        """
-        Encrypts a message using a shared key with AES-GCM.
-
-        Minimum payload size (disregarding varying message byte size):
-        - For CurveType.CURVE25519: public key (32) + nonce (12) + AES key (16) = 60 bytes
-        - For CurveType.CURVE448: public key (56) + nonce (12) + AES key (16) = 84 bytes
-
-        Args:
-            shared_key (bytes): The shared key used for encryption.
-            msg (bytes): The message to be encrypted.
-
-        Returns:
-            tuple[bytes, bytes]: A tuple containing the nonce and the encrypted message.
-        """
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b'handshake data'
-        ).derive(shared_key)
-
-        aesgcm = AESGCM(key=derived_key)
-        nonce = os.urandom(12)  # never reuse nonce key combo
-        encrypted_msg = aesgcm.encrypt(nonce, msg, None)  # Tag is last 16 bytes
-        return nonce, encrypted_msg
     
     def decrypt_msg(self, shared_key: bytes, nonce: bytes, encrypted_msg: bytes) -> bytes:
         """
