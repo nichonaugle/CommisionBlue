@@ -1,5 +1,5 @@
 import os
-from commision_blue.crypto_utils import CryptoHandler
+from commision_blue.crypto_utils import ExchangeHandler, CurveType
 
 ## EXAMPLE KEY EXCHANGE FLOW W/ UTILITY USING FILES INSTEAD OF BLE ##
 
@@ -10,11 +10,13 @@ RESET = "\033[0m"
 
 
 #server and client key-exchange instances
-server_crypto_handler = CryptoHandler()
-client_crypto_handler = CryptoHandler()
+curve_type = CurveType.CURVE448 # || CurveType.CURVE25519
+server_crypto_handler = ExchangeHandler(curve_type)
+client_crypto_handler = ExchangeHandler(curve_type)
 
 
 # SERVER OPERATIONS #
+
 server_private_key, server_public_key = server_crypto_handler.generate_key_pair() # public key is 32 raw byte to be sent over BLE
 
 # CLIENT OPERATIONS #
@@ -35,6 +37,7 @@ print()
 
 #create byte packet to send via BLE
 byte_send_packet = client_public_key + nonce + encrypted_msg
+print(f"{RED}SIZE INFO: client payload packet is {len(byte_send_packet)} bytes{RESET}")
 
 
 # TEST SERVER VERIFICATION OPERATIONS (using files) #
@@ -42,7 +45,7 @@ with open('encrypted_data.bin', 'wb') as file:
     file.write(byte_send_packet)
     
 with open('encrypted_data.bin', 'rb') as file:
-    recv_pub_key = file.read(32)
+    recv_pub_key = file.read(32 if curve_type == CurveType.CURVE25519 else 56)
     recv_nonce = file.read(12)
     combined_msg = file.read() #msg byte length + 16 byte tag
 

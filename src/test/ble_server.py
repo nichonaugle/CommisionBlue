@@ -1,6 +1,6 @@
-from commision_blue.crypto_utils import CryptoHandler
+from commision_blue.crypto_utils import ExchangeHandler
 
-crypto_handler = CryptoHandler()
+crypto_handler = ExchangeHandler()
 
 #keys
 server_private_key, server_public_key = crypto_handler.generate_key_pair()
