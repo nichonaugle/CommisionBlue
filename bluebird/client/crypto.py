@@ -112,13 +112,45 @@ class ExchangeHandler:
         encrypted_msg = aesgcm.encrypt(nonce, msg, None)  # Tag is last 16 bytes
         return nonce, encrypted_msg
 
-    def create_encrypted_payload(self, shared_key: bytes, msg: str, key_pair: Tuple[Union[X25519PrivateKey, X448PrivateKey], bytes]) -> bytes:
+    def create_encrypted_payload_from_key_pair(self, shared_key: bytes, msg: str, key_pair: Tuple[Union[X25519PrivateKey, X448PrivateKey], bytes]) -> bytes:
         """
+        Wrapper for other functions to create of the payload from generated key pair.
+
         Payload size (disregarding varying message byte size):
         - For CurveType.CURVE25519: public key (32) + nonce (12) + ciphertext (Max: MTU Size bytes - 44 bytes, Min: 44 bytes)
         - For CurveType.CURVE448: public key (56) + nonce (12) + ciphertext (Max: MTU Size bytes - 68 bytes, Min: 68 bytes)
-        """
         
-        nonce, encrypted_msg = encrypt_msg(shared_key, str.encode(msg))
+        Args:
+            shared_key (bytes): The shared key used for encryption.
+            msg (bytes): The message to be encrypted.
+            key_pair (tuple): Output of "generate_key_pair" function
+
+        Returns:
+            payload (bytes: A payload in bytes to send to the server.
+        """
+
+        nonce, encrypted_msg = self.encrypt_msg(shared_key, str.encode(msg))
         payload = key_pair[1] + nonce + encrypted_msg
         return payload
+
+    def create_encrypted_payload(self, msg: str, curve_type: CurveType, ext_public_key: bytes) -> tuple[bytes, bytes]:
+        """
+        Wrapper for other functions to streamline creation of the payload.
+
+        Payload size (disregarding varying message byte size):
+        - For CurveType.CURVE25519: public key (32) + nonce (12) + ciphertext (Max: MTU Size bytes - 44 bytes, Min: 44 bytes)
+        - For CurveType.CURVE448: public key (56) + nonce (12) + ciphertext (Max: MTU Size bytes - 68 bytes, Min: 68 bytes)
+        
+        Args:
+            msg (bytes): The message to be encrypted.
+            curve_type (CurveType): The type of curve to use (CurveType.CURVE25519 or CurveType.CURVE448).
+            ext_public_key (bytes): The external public key in bytes format.
+
+        Returns:
+            tuple[bytes, bytes]: A payload and ECDH public key to send to server.
+        """
+        self.generate_key_pair(curve_type)
+        shared_key = self.derive_shared_key(ext_public_key)
+        nonce, encrypted_msg = self.encrypt_msg(shared_key, str.encode(msg))
+        payload = key_pair[1] + nonce + encrypted_msg
+        return payload, self.public_key
