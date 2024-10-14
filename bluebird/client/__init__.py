@@ -1,1 +1,1 @@
-from .crypto import CurveType, ExchangeHandler
+from .crypto import ClientExchangeHandler

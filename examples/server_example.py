@@ -1,19 +1,24 @@
-from blu_bird.crypto_utils import ExchangeHandler
+from bluebird import ServerExchangeHandler, CurveType
 
-crypto_handler = ExchangeHandler()
+pick_your_curve = CurveType.CURVE448  # Either CurveType.CURVE25519 or CurveType.CURVE448
 
-#keys
-server_private_key, server_public_key = crypto_handler.generate_key_pair()
+def server_setup() -> bytes:
+    """ 
+    Server is initialized with the desired curve type 
+    -> Sends out server_public_key_to_send
+    """
+    server = ServerExchangeHandler(pick_your_curve)
+    _, server_public_key_to_send = server.generate_key_pair()
+    print(f"Server Public Key (bytes): {server_public_key_to_send}")
+    return server_public_key_to_send
 
-#send server public key to client
-# ble_util.send(server_public_key) #TODO
-
-
-#receive full msg payload from client
-# recv_pub_key, nonce, encr_msg = ble_util.req_client_payload() #TODO
-
-#decrypt msg
-shared_key = crypto_handler.derive_shared_key(server_private_key, recv_pub_key)
-decr_msg = crypto_handler.decrypt_msg(shared_key, nonce, encr_msg)
-print(f"Decrypted msg: {decr_msg}")
+def server_decrypt_payload() -> str:
+    """ 
+    Server 
+    <- Receives payload and extracts plaintext in bytes
+    """
+    decrypted_msg = server.decrypt_payload(client_payload_to_send)
+    print(f"Decrypted Message From Client (bytes): {decrypted_msg}")
+    print(f"Decrypted Message From Client: {decrypted_msg.decode()}")
+    return decrypted_msg.decode()
 

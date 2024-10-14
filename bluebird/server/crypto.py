@@ -4,21 +4,10 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from cryptography.hazmat.primitives.asymmetric.x448 import X448PrivateKey, X448PublicKey
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from enum import Enum
+from bluebird.util import CurveType
 from typing import Union, Tuple
-
-class CurveType(Enum):
-    """
-    CurveType is an enumeration that defines types of cryptographic curves. Must be the same for both client and server!
-
-    Attributes:
-        CURVE25519 (str): Represents the Curve25519 elliptic curve.
-        CURVE448 (str): Represents the Curve448 elliptic curve.
-    """
-    CURVE25519 = "curve25519"
-    CURVE448 = "curve448"
     
-class ExchangeHandler:
+class ServerExchangeHandler:
     """
     A class for handling cryptographic operations, including key generation, 
     shared key derivation, and message encryption using X25519 and AES-GCM or X448 and AES-GCM.
@@ -111,3 +100,34 @@ class ExchangeHandler:
         aesgcm = AESGCM(key=derived_key)
         decrypted_msg = aesgcm.decrypt(nonce, encrypted_msg, None)
         return decrypted_msg
+    
+    def decrypt_payload(self, client_payload: bytes) -> str:
+        """
+        Decrypts the given client payload based on the curve type.
+
+        Args:
+            client_payload (bytes): The encrypted payload from the client.
+
+        Returns:
+            str: The decrypted plaintext message.
+
+        Raises:
+            ValueError: If the curve type is not defined by the server.
+        """
+        if (self.curve_type == CurveType.CURVE25519):
+            ext_public_key = client_payload[0:32]
+            nonce = client_payload[32:44]
+            message = client_payload[44:]
+        elif (self.curve_type == CurveType.CURVE448):
+            ext_public_key = client_payload[0:56]
+            nonce = client_payload[56:68]
+            message = client_payload[68:]
+        else:
+            raise ValueError("Curve Type not defined by the server!")
+        try:
+            shared_key = self.derive_shared_key(ext_public_key)
+            plaintext_message = self.decrypt_msg(shared_key, nonce, message)
+        except Exception as e:
+            raise ValueError(f"Decryption failed: {e}")
+
+        return plaintext_message

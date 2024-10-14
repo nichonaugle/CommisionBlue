@@ -1,59 +1,29 @@
-import os
-from blu_bird.crypto_utils import ExchangeHandler, CurveType
+from bluebird import ClientExchangeHandler, ServerExchangeHandler, CurveType
 
-## EXAMPLE KEY EXCHANGE FLOW W/ UTILITY USING FILES INSTEAD OF BLE ##
-
-RED = "\033[31m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
-RESET = "\033[0m"
-
-
-#server and client key-exchange instances
-curve_type = CurveType.CURVE448 # || CurveType.CURVE25519
-server_crypto_handler = ExchangeHandler(curve_type)
-client_crypto_handler = ExchangeHandler(curve_type)
+""" 
+Server is initialized with the desired curve type 
+ -> Sends out server_public_key_to_send
+"""
+server = ServerExchangeHandler(CurveType.CURVE448)
+_, server_public_key_to_send = server.generate_key_pair()
+print(f"Server Public Key (bytes): {server_public_key_to_send}")
 
 
-# SERVER OPERATIONS #
-
-server_private_key, server_public_key = server_crypto_handler.generate_key_pair() # public key is 32 raw byte to be sent over BLE
-
-# CLIENT OPERATIONS #
-
-#client creates public/private key set and shared key using server payload
-password = b"Nicho's Kittens"
-client_private_key, client_public_key = client_crypto_handler.generate_key_pair()
-client_shared_key = client_crypto_handler.derive_shared_key(server_public_key)
-
-#client now encrypts password using AES-256 GCM 
-nonce, encrypted_msg = client_crypto_handler.encrypt_msg(client_shared_key, password) #nonce is 12 byte, msg is pass byte size + key (16 byte)
-
-#client sends nonce, encrypted_msg (ciphertext + tag), and public key to server via BLE
-print(f'{YELLOW}sent public_key in bytes:{RESET}', client_public_key)
-print(f'{YELLOW}sent nonce in bytes:{RESET}', nonce)
-print(f'{YELLOW}sent encrypted_msg in bytes:{RESET}', encrypted_msg)
-print()
-
-#create byte packet to send via BLE
-byte_send_packet = client_public_key + nonce + encrypted_msg
-print(f"{RED}SIZE INFO: client payload packet is {len(byte_send_packet)} bytes{RESET}")
+""" 
+Client is initialized with the desired curve type 
+ <- Receives server public key
+ -> Sends out payload with client public key, encrypted password, nonce, and tag all in one
+"""
+client = ClientExchangeHandler(CurveType.CURVE448)
+wifi_password = "MyWiFiPass12345!"
+client_payload_to_send = client.create_encrypted_payload(wifi_password, server_public_key_to_send)
+print(f"Payload To Send From Client to Server (bytes): {client_payload_to_send}")
 
 
-# TEST SERVER VERIFICATION OPERATIONS (using files) #
-with open('encrypted_data.bin', 'wb') as file:
-    file.write(byte_send_packet)
-    
-with open('encrypted_data.bin', 'rb') as file:
-    recv_pub_key = file.read(32 if curve_type == CurveType.CURVE25519 else 56)
-    recv_nonce = file.read(12)
-    combined_msg = file.read() #msg byte length + 16 byte tag
-
-print(f"{YELLOW}Received Public Key:{RESET} {recv_pub_key}")
-print(f"{YELLOW}Received Nonce:{RESET} {recv_nonce}")
-print(f"{YELLOW}Received Ciphertext:{RESET} {combined_msg}")
-print()
-
-server_shared_key = server_crypto_handler.derive_shared_key(recv_pub_key)
-print(f"{YELLOW}is server shared key the same as client?:{GREEN} {server_shared_key == client_shared_key}")
-print(f"{YELLOW}decrypted msg:{GREEN} {server_crypto_handler.decrypt_msg(server_shared_key, recv_nonce, combined_msg)}")
+""" 
+Server 
+ <- Receives payload and extracts plaintext in bytes
+"""
+decrypted_msg = server.decrypt_payload(client_payload_to_send)
+print(f"Decrypted Message From Client (bytes): {decrypted_msg}")
+print(f"Decrypted Message From Client: {decrypted_msg.decode()}")

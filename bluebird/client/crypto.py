@@ -4,21 +4,10 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from cryptography.hazmat.primitives.asymmetric.x448 import X448PrivateKey, X448PublicKey
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from enum import Enum
+from bluebird.util import CurveType
 from typing import Union, Tuple
 
-class CurveType(Enum):
-    """
-    CurveType is an enumeration that defines types of cryptographic curves. Must be the same for both client and server!
-
-    Attributes:
-        CURVE25519 (str): Represents the Curve25519 elliptic curve.
-        CURVE448 (str): Represents the Curve448 elliptic curve.
-    """
-    CURVE25519 = "curve25519"
-    CURVE448 = "curve448"
-    
-class ExchangeHandler:
+class ClientExchangeHandler:
     """
     A class for handling cryptographic operations, including key generation, 
     shared key derivation, and message encryption using X25519 and AES-GCM or X448 and AES-GCM.
@@ -126,14 +115,14 @@ class ExchangeHandler:
             key_pair (tuple): Output of "generate_key_pair" function
 
         Returns:
-            payload (bytes: A payload in bytes to send to the server.
+            payload (bytes): A payload with ECDH public key, nonce, and encrypted message to send to server.
         """
 
         nonce, encrypted_msg = self.encrypt_msg(shared_key, str.encode(msg))
-        payload = key_pair[1] + nonce + encrypted_msg
+        payload = self.public_key + nonce + encrypted_msg
         return payload
 
-    def create_encrypted_payload(self, msg: str, curve_type: CurveType, ext_public_key: bytes) -> tuple[bytes, bytes]:
+    def create_encrypted_payload(self, msg: str, ext_public_key: bytes) -> bytes:
         """
         Wrapper for other functions to streamline creation of the payload.
 
@@ -143,14 +132,13 @@ class ExchangeHandler:
         
         Args:
             msg (bytes): The message to be encrypted.
-            curve_type (CurveType): The type of curve to use (CurveType.CURVE25519 or CurveType.CURVE448).
             ext_public_key (bytes): The external public key in bytes format.
 
         Returns:
-            tuple[bytes, bytes]: A payload and ECDH public key to send to server.
+            payload (bytes): A payload with ECDH public key, nonce, and encrypted message to send to server.
         """
-        self.generate_key_pair(curve_type)
+        self.generate_key_pair()
         shared_key = self.derive_shared_key(ext_public_key)
         nonce, encrypted_msg = self.encrypt_msg(shared_key, str.encode(msg))
-        payload = key_pair[1] + nonce + encrypted_msg
-        return payload, self.public_key
+        payload = self.public_key + nonce + encrypted_msg
+        return payload

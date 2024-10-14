@@ -1,18 +1,16 @@
-from blu_bird.crypto_utils import ExchangeHandler
+from bluebird import ClientExchangeHandler, CurveType
 
-crypto_handler = ExchangeHandler()
+pick_your_curve = CurveType.CURVE448  # Either CurveType.CURVE25519 or CurveType.CURVE448
+wifi_password = "MyWiFiPass12345!"      # Add Message to send here
+public_key_from_server = b''            # Add public key here
 
-#key generation
-client_private_key, client_public_key = crypto_handler.generate_key_pair()
-
-# recv_server_pub_key = ble_util.req_server_key() #TODO
-
-#derive shared key from ECDH
-shared_key = crypto_handler.derive_shared_key(recv_server_pub_key)
-
-#send encrypted pass
-password = b"Nicho's Kittens"
-nonce, encr_msg = crypto_handler.encrypt_msg(shared_key, password)
-
-#send [client pub key, nonce, encrypt msg (with 16 byte tag)] to server
-# ble_util.send(client_public_key, nonce, encr_msg) #TODO
+def client_example() -> str:
+    """ 
+    Client is initialized with the desired curve type 
+    <- Receives server public key
+    -> Sends out payload with client public key, encrypted password, nonce, and tag all in one
+    """
+    client = ClientExchangeHandler(pick_your_curve)
+    client_payload_to_send = client.create_encrypted_payload(wifi_password, public_key_from_server)
+    print(f"Payload To Send From Client to Server (bytes): {client_payload_to_send}")
+    return client_payload_to_send
