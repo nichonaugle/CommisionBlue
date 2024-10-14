@@ -1,5 +1,5 @@
 ![bluebird open source BLE commissioning](images/bluebird.png)
-# Open Source Linux Encrypted BLE Commissioner
+# Open Source Python BLE Commissioner (Server/Client)
 This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Low Energy)** to allow devices like a Linux server or SBC (like a raspberry pi) to be **commissioned** securely with encrypted network credentials using **asymmetric** cryptography (ECDH with ED25519) for the shared key and **symmetric** encryption (AES-256 in GCM mode) for sending credentials. The service advertises the public key over BLE, allowing a client (e.g., a Mobile application) to securely encrypt credentials that can only be decrypted by the server in a one way transaction. Protection measures are also improved through server side public key cycling if an unsuccessful commissioning attempt occurs and message authentication codes in the encrypted AES payload to prevent attacks. Furthermore, the selected encryption techniques optimize the avaliable resources on edge computers and most BLE protocols with minimal configuration required, streamlining implementation.
 
 ## Overview
