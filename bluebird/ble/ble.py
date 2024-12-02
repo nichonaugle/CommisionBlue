@@ -96,9 +96,7 @@ class CommissioningService(BaseService):
     def __init__(self, bus, index):
         BaseService.__init__(self, bus, index, SERVICE_UUID, True)
         self.add_characteristic(SsidCharacteristic(bus, 0, self))
-        self.add_characteristic(PasswordCharacteristic(bus, 1, self))
-        self.add_characteristic(AesCharacteristic(bus, 2, self))
-        self.add_characteristic(EccCharacteristic(bus, 3, self))
+        self.add_characteristic(PayloadCharacteristic(bus, 1, self))
 
 class SsidCharacteristic(BaseCharacteristic):
     description = b"Plaintext SSID"
@@ -156,29 +154,6 @@ class PayloadCharacteristic(BaseCharacteristic):
         logger.info(f"writing {cmd} to machine")
         self.value = value
 
-class CharacteristicUserDescriptionDescriptor(BaseDescriptor):
-    """
-    Writable CUD descriptor.
-    """
-
-    CUD_UUID = "2901"
-
-    def __init__(
-        self, bus, index, characteristic,
-    ):
-
-        self.value = array.array("B", characteristic.description)
-        self.value = self.value.tolist()
-        BaseDescriptor.__init__(self, bus, index, self.CUD_UUID, ["read"], characteristic)
-
-    def ReadValue(self, options):
-        return self.value
-
-    def WriteValue(self, value, options):
-        if not self.writable:
-            raise NotPermittedException()
-        self.value = value
-
 class CommissioningAdvertisement(BaseAdvertisement):
     def __init__(self, bus, index):
         BaseAdvertisement.__init__(self, bus, index, "peripheral")
@@ -213,8 +188,8 @@ class BluebirdCommissioner():
         
         self._adapter_props.Set("org.bluez.Adapter1", "Powered", dbus.Boolean(1)) # powered property on the controller to on
         advertisement = CommissioningAdvertisement(self._bus, 0)
-        self.app = BaseApplication(bus)
-        self.app.add_service(CommissioningService(bus, 2))
+        self.app = BaseApplication(self._bus)
+        self.app.add_service(CommissioningService(self._bus, 2))
         self._running_mainloop = MainLoop()
         agent_manager = dbus.Interface(_bluez_obj, "org.bluez.AgentManager1")
         agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
