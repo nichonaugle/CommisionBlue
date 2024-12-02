@@ -33,16 +33,6 @@ CHARACTERISTIC_UUID_PAYLOAD = "bfc0c92f-317d-4ba9-976b-cc11ce77b4ca"
 
 AGENT_PATH = "/com/punchthrough/agent"
 
-MainLoop = None
-try:
-    from gi.repository import GLib
-
-    MainLoop = GLib.MainLoop
-except ImportError:
-    import gobject as GObject
-
-    MainLoop = GObject.MainLoop
-
 VivaldiBaseUrl = "XXXXXXXXXXXX"
 
 mainloop = None
@@ -200,27 +190,34 @@ class CommissioningAdvertisement(BaseAdvertisement):
         self.add_local_name("Comissioning Service")
         self.include_tx_power = True
 
+class BluebirdCommissioner():
+
+    def __init__():
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        _mainloop = GLib.MainLoop
+        _bus = dbus.SystemBus()
+        _adapter = find_adapter(self._bus)
+        _adapter_obj = lambda: (None if not self._adapter else self._bus.get_object(BLUEZ_SERVICE_NAME, self._adapter))
+        _adapter_props = lambda: (None if not self._adapter else dbus.Interface(self._adapter_obj, "org.freedesktop.DBus.Properties"))
+
+        # Lambda function handles finding the adapter and initializing related properties
+        self._adapter, self._adapter_obj, self._adapter_props = (lambda: (
+            adapter := find_adapter(self._bus),
+            None if not adapter else self._bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+            None if not adapter else dbus.Interface(
+                self._bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+                "org.freedesktop.DBus.Properties"
+            )
+        ) if (adapter := find_adapter(self._bus)) else (None, None, None))()
+    
+    def start():
+        if not _adapter:
+            print("GattManager1 interface not found") #logger.critical("GattManager1 interface not found")
+            sys.exit(1)
+        
+        self._adapter_props.Set("org.bluez.Adapter1", "Powered", dbus.Boolean(1)) # powered property on the controller to on
+
 def main():
-    global mainloop
-
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
-    # get the system bus
-    bus = dbus.SystemBus()
-    # get the ble controller
-    adapter = find_adapter(bus)
-
-    if not adapter:
-        logger.critical("GattManager1 interface not found")
-        return
-
-    adapter_obj = bus.get_object(BLUEZ_SERVICE_NAME, adapter)
-
-    adapter_props = dbus.Interface(adapter_obj, "org.freedesktop.DBus.Properties")
-
-    # powered property on the controller to on
-    adapter_props.Set("org.bluez.Adapter1", "Powered", dbus.Boolean(1))
-
     # Get manager objs
     service_manager = dbus.Interface(adapter_obj, GATT_MANAGER_IFACE)
     ad_manager = dbus.Interface(adapter_obj, LE_ADVERTISING_MANAGER_IFACE)
