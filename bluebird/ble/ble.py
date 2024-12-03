@@ -67,17 +67,28 @@ class SsidCharacteristic(BaseCharacteristic):
             self, bus, index, CHARACTERISTIC_UUID_SSID, ["encrypt-read", "encrypt-write"], service,
         )
         self.value = [0x0000]
+        self._write_handler = None  # Default to None
+
+    def set_write_handler(self, handler):
+        self._write_handler = handler
+
+    def WriteValue(self, value, options):
+        if self._write_handler:
+            self._write_handler(value, options)
+        else:
+            logger.warning("Write handler for SSID not set")
 
     def ReadValue(self, options):
         return self.value
 
+    """
     def WriteValue(self, value, options):
         logger.info("auto off write: " + repr(value))
         cmd = bytes(value)
 
         # write it to machine
         logger.info(f"writing {cmd} to machine")
-        self.value = value
+        self.value = value"""
 
 class PayloadCharacteristic(BaseCharacteristic):
     description = b"Encrypted Password (With AES and ECC)"
@@ -87,17 +98,27 @@ class PayloadCharacteristic(BaseCharacteristic):
             self, bus, index, CHARACTERISTIC_UUID_PAYLOAD, ["encrypt-read", "encrypt-write"], service,
         )
         self.value = [0x0000]
+        self._write_handler = None  # Default to None
+
+    def set_write_handler(self, handler):
+        self._write_handler = handler
+
+    def WriteValue(self, value, options):
+        if self._write_handler:
+            self._write_handler(value, options)
+        else:
+            logger.warning("Write handler for Payload not set")
 
     def ReadValue(self, options):
         return self.value
 
-    def WriteValue(self, value, options):
+    """def WriteValue(self, value, options):
         logger.info("auto off write: " + repr(value))
         cmd = bytes(value)
 
         # write it to machine
         logger.info(f"writing {cmd} to machine")
-        self.value = value
+        self.value = value"""
 
 class AvaliableSsidsCharacteristic(BaseCharacteristic):
     description = b"Avaliable SSIDs"
@@ -151,10 +172,8 @@ class BluebirdCommissioner():
         self._commissioning_service = CommissioningService(self._bus, 2)
         self.app = None
         self.params = {
-            "avaliable_ssids": self._commissioning_service.payload_characteristic.ReadValue(None),
-            "ssid": self._commissioning_service.ssid_characteristic.ReadValue(None),
-            "payload": self._commissioning_service.payload_characteristic.ReadValue(None),
-            "public-key": self._commissioning_service.public_key_characteristic.ReadValue(None)
+            "avaliable_ssids": None,
+            "ssid": None
         }
     
     def start(self):
@@ -178,11 +197,38 @@ class BluebirdCommissioner():
             reply_handler=self.register_app_cb,
             error_handler=self.register_app_error_cb,
         )
+        self._commissioning_service.ssid_characteristic.set_write_handler(self._handle_ssid_write)
+        self._commissioning_service.payload_characteristic.set_write_handler(self._handle_password_write)
         agent_manager = dbus.Interface(self._bluez_obj, "org.bluez.AgentManager1")
         agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
         agent_manager.RequestDefaultAgent(AGENT_PATH)
         self._mainloop.run()
-    
+
+    def _handle_ssid_write(self, value, options):
+        ssid = bytes(value).decode()  # Decode the written value
+        self.params["ssid"] = ssid
+        logger.info(f"SSID updated to: {ssid}")
+        self._check_parameters()
+
+    def _handle_password_write(self, value, options):
+        password = bytes(value).decode()  # Decode the written value
+        self.params["password"] = password
+        logger.info(f"Password updated to: {password}")
+        self._check_parameters()
+
+    def _check_parameters(self):
+        # Check if both parameters are provided
+        if all(self.params.values()):
+            logger.info("All parameters provided. Starting commissioning process.")
+            self._mainloop.quit()
+            self.commission_device()
+
+    def commission_device(self):
+        ssid = self.parameters["ssid"]
+        password = self.parameters["password"]
+        logger.info(f"Commissioning with SSID: {ssid} and Password: {password}")
+        # Add the actual commissioning logic here
+
     def close(self):
         logger.info("Shutting off commissioner") 
         self._mainloop.quit()
