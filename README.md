@@ -73,6 +73,12 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
 | Public Key | Server's ECDH public key, hashed per use | Plaintext | Read |
 | Client Public Key | Client's ECDH public key, hashed per use | Plaintext | Write |
 | Client AES Payload | Client's AES Payload, hashed per use | Plaintext | Write |
+
+### Pre-requisites:
+Install the following packages
+sudo apt install build-essential libpython3-dev libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev python3-gi python3-gi-cairo gir1.2-gtk-3.0
+Then install the requirements.txt
+pip install -r requirements.txt
 ### Future Enhancements:
 
 -   Integration of additional security checks (e.g., HMAC for further integrity verification).
