@@ -76,9 +76,11 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
 
 ### Pre-requisites:
 Install the following packages
-sudo apt install build-essential libpython3-dev libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev python3-gi python3-gi-cairo gir1.2-gtk-3.0 libcairo2-dev libxt-dev
+sudo apt install build-essential libpython3-dev libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev python3-gi python3-gi-cairo gir1.2-gtk-3.0 libcairo2-dev libxt-dev bluez
 Then install the requirements.txt
 pip install -r requirements.txt
+
+USe this to monitor bluez through dbus: sudo dbus-monitor --system "destination='org.bluez'" "sender='org.bluez'"
 ### Future Enhancements:
 
 -   Integration of additional security checks (e.g., HMAC for further integrity verification).

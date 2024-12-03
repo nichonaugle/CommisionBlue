@@ -8,6 +8,8 @@ import struct
 import requests
 import array
 from enum import Enum
+from .base import BaseService, BaseCharacteristic, BaseAdvertisement, BaseApplication
+from .util import find_adapter
 
 GATT_SERVICE_IFACE = "org.bluez.GattService1"
 GATT_CHRC_IFACE = "org.bluez.GattCharacteristic1"
@@ -118,7 +120,7 @@ class SsidCharacteristic(BaseCharacteristic):
         )
 
         self.value = [0xFF]
-        self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
+        #self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
 
     def ReadValue(self, options):
         return self.value
@@ -137,11 +139,11 @@ class PayloadCharacteristic(BaseCharacteristic):
 
     def __init__(self, bus, index, service):
         BaseCharacteristic.__init__(
-            self, bus, index, CHARACTERISTIC_UUID_PASS, ["encrypt-read", "encrypt-write"], service,
+            self, bus, index, CHARACTERISTIC_UUID_PAYLOAD, ["encrypt-read", "encrypt-write"], service,
         )
 
         self.value = []
-        self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
+        #self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
 
     def ReadValue(self, options):
         return self.value
@@ -166,23 +168,23 @@ class CommissioningAdvertisement(BaseAdvertisement):
         self.include_tx_power = True
 
 class BluebirdCommissioner():
-
-    def __init__():
+    # PASSES
+    def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        _mainloop = GLib.MainLoop
-        _running_mainloop = None #MainLoop()
-        _bus = dbus.SystemBus()
-        _adapter = find_adapter(self._bus)
-        _adapter_obj = lambda: (None if not self._adapter else self._bus.get_object(BLUEZ_SERVICE_NAME, self._adapter))
-        _adapter_props = lambda: (None if not self._adapter else dbus.Interface(self._adapter_obj, "org.freedesktop.DBus.Properties"))
-        _service_manager = dbus.Interface(self._adapter_obj, GATT_MANAGER_IFACE)
-        _advertising_manger = dbus.Interface(self._adapter_obj, LE_ADVERTISING_MANAGER_IFACE)
-        _bluez_obj = self._bus.get_object(BLUEZ_SERVICE_NAME, "/org/bluez")
-        _agent = Agent(self._bus, AGENT_PATH)
-        app = None
+        self._mainloop = GLib.MainLoop()
+        self._running_mainloop = None #MainLoop()
+        self._bus = dbus.SystemBus()
+        self._adapter = find_adapter(self._bus)
+        self._adapter_obj = self._bus.get_object(BLUEZ_SERVICE_NAME, self._adapter)
+        self._adapter_props = dbus.Interface(self._adapter_obj, "org.freedesktop.DBus.Properties")
+        self._service_manager = dbus.Interface(self._adapter_obj, GATT_MANAGER_IFACE)
+        self._advertising_manger = dbus.Interface(self._adapter_obj, LE_ADVERTISING_MANAGER_IFACE)
+        self._bluez_obj = self._bus.get_object(BLUEZ_SERVICE_NAME, "/org/bluez")
+        # self._agent = Agent(self._bus, AGENT_PATH)
+        self.app = None
     
-    def start():
-        if not _adapter:
+    def start(self):
+        if not self._adapter:
             print("GattManager1 interface not found") #logger.critical("GattManager1 interface not found")
             sys.exit(1)
         
@@ -190,21 +192,34 @@ class BluebirdCommissioner():
         advertisement = CommissioningAdvertisement(self._bus, 0)
         self.app = BaseApplication(self._bus)
         self.app.add_service(CommissioningService(self._bus, 2))
-        self._running_mainloop = MainLoop()
-        agent_manager = dbus.Interface(_bluez_obj, "org.bluez.AgentManager1")
-        agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
         self._advertising_manger.RegisterAdvertisement(
             advertisement.get_path(),
             {},
-            reply_handler=register_ad_cb,
-            error_handler=register_ad_error_cb,
+            reply_handler=self.register_ad_cb,
+            error_handler=self.register_ad_error_cb,
         )
         #logger.info("Registering GATT application...")
         self._service_manager.RegisterApplication(
             self.app.get_path(),
             {},
-            reply_handler=register_app_cb,
-            error_handler=[big_error],
+            reply_handler=self.register_app_cb,
+            error_handler=self.register_app_error_cb,
         )
-        agent_manager.RequestDefaultAgent(AGENT_PATH)
-        self._running_mainloop.run()
+        # agent_manager = dbus.Interface(_bluez_obj, "org.bluez.AgentManager1")
+        # agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
+        # agent_manager.RequestDefaultAgent(AGENT_PATH)
+        self._mainloop.run()
+    
+    def register_ad_cb(self):
+        print("Advertisement registered")
+
+    def register_app_cb(self):
+        print("Application registered")
+
+    def register_ad_error_cb(self, error):
+        print("Failed to register advertisement: " + str(error))
+        self._mainloop.quit()
+    
+    def register_app_error_cb(self, error):
+        print("Failed to register application: " + str(error))
+        self._mainloop.quit()

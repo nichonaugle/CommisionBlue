@@ -2,6 +2,7 @@ import dbus
 import sys
 import dbus.service
 import dbus.exceptions
+import logging
 
 GATT_SERVICE_IFACE = "org.bluez.GattService1"
 GATT_CHRC_IFACE = "org.bluez.GattCharacteristic1"
@@ -26,6 +27,14 @@ CHARACTERISTIC_UUID_SSID = "51FF12BB-3ED8-46E5-AD5B-D64E2FEC021B"
 CHARACTERISTIC_UUID_PAYLOAD = "bfc0c92f-317d-4ba9-976b-cc11ce77b4ca"
 
 AGENT_PATH = "/com/punchthrough/agent"
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logHandler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logHandler.setFormatter(formatter)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
 
 class BaseApplication(dbus.service.Object):
     """
