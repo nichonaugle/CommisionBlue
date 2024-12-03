@@ -14,19 +14,9 @@ GATT_SERVICE_IFACE = "org.bluez.GattService1"
 GATT_CHRC_IFACE = "org.bluez.GattCharacteristic1"
 GATT_DESC_IFACE = "org.bluez.GattDescriptor1"
 
-LE_ADVERTISING_MANAGER_IFACE = "org.bluez.LEAdvertisingManager1"
 LE_ADVERTISEMENT_IFACE = "org.bluez.LEAdvertisement1"
 
-BLUEZ_SERVICE_NAME = "org.bluez"
-GATT_MANAGER_IFACE = "org.bluez.GattManager1"
-
-AGENT_INTERFACE = "org.bluez.Agent1"
-
 SERVICE_UUID = "A07498CA-AD5B-474E-940D-16F1FBE7E8CD"
-CHARACTERISTIC_UUID_SSID = "51FF12BB-3ED8-46E5-AD5B-D64E2FEC021B"
-CHARACTERISTIC_UUID_PAYLOAD = "bfc0c92f-317d-4ba9-976b-cc11ce77b4ca"
-
-AGENT_PATH = "/com/punchthrough/agent"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -329,109 +319,3 @@ class InvalidValueLengthException(dbus.exceptions.DBusException):
 
 class FailedException(dbus.exceptions.DBusException):
     _dbus_error_name = "org.bluez.Error.Failed"
-
-class BLEService(dbus.service.Object):
-    """
-    Custom Gatt Service for Wi-Fi Credential Management
-    """
-    PATH_BASE = "/org/bluez/example/service"
-
-    def __init__(self, bus, index, uuid=SERVICE_UUID, primary=True):
-        self.path = self.PATH_BASE + str(index)
-        self.bus = bus
-        self.uuid = uuid
-        self.primary = primary
-        self.characteristics = []
-        dbus.service.Object.__init__(self, bus, self.path)
-
-    def add_characteristic(self, characteristic):
-        self.characteristics.append(characteristic)
-
-    def get_properties(self):
-        return {
-            GATT_SERVICE_IFACE: {
-                'UUID': self.uuid,
-                'Primary': self.primary,
-                'Characteristics': dbus.Array([c.get_path() for c in self.characteristics], signature="o")
-            }
-        }
-
-    @dbus.service.method(DBUS_PROP_IFACE, in_signature="s", out_signature="a{sv}")
-    def GetAll(self, interface):
-        if interface != GATT_SERVICE_IFACE:
-            raise dbus.exceptions.DBusException("Unknown interface: {}".format(interface))
-        return self.get_properties()
-
-    def get_path(self):
-        return dbus.ObjectPath(self.path)
-
-class BLECharacteristic(dbus.service.Object):
-    """
-    Custom GATT Characteristic to create read and write attributes
-    """
-    PATH_BASE = "/org/bluez/commission/char"
-
-    def __init__(self, bus, index, uuid, flags, service):
-        self.path = service.path + "/char" + str(index)
-        self.bus = bus
-        self.uuid = uuid
-        self.flags = flags
-        self.service = service
-        self.value = None  # Store the characteristic's value
-        dbus.service.Object.__init__(self, bus, self.path)
-
-    def get_properties(self):
-        return {
-            GATT_CHRC_IFACE: {
-                "Service": self.service.get_path(),
-                "UUID": self.uuid,
-                "Flags": self.flags,
-                "Descriptors": dbus.Array(self.get_descriptor_paths(), signature="o"),
-            }
-        }
-
-    def get_path(self):
-        return dbus.ObjectPath(self.path)
-
-    def add_descriptor(self, descriptor):
-        self.descriptors.append(descriptor)
-
-    def get_descriptor_paths(self):
-        result = []
-        for desc in self.descriptors:
-            result.append(desc.get_path())
-        return result
-
-    def get_descriptors(self):
-        return self.descriptors
-
-    @dbus.service.method(DBUS_PROP_IFACE, in_signature="s", out_signature="a{sv}")
-    def GetAll(self, interface):
-        if interface != GATT_CHRC_IFACE:
-            raise InvalidArgsException()
-
-        return self.get_properties()[GATT_CHRC_IFACE]
-
-    @dbus.service.method(GATT_CHRC_IFACE, in_signature="a{sv}", out_signature="ay")
-    def ReadValue(self, options):
-        logger.info("Default ReadValue called, returning error")
-        raise NotSupportedException()
-
-    @dbus.service.method(GATT_CHRC_IFACE, in_signature="aya{sv}")
-    def WriteValue(self, value, options):
-        logger.info("Default WriteValue called, returning error")
-        raise NotSupportedException()
-
-    @dbus.service.method(GATT_CHRC_IFACE)
-    def StartNotify(self):
-        logger.info("Default StartNotify called, returning error")
-        raise NotSupportedException()
-
-    @dbus.service.method(GATT_CHRC_IFACE)
-    def StopNotify(self):
-        logger.info("Default StopNotify called, returning error")
-        raise NotSupportedException()
-
-    @dbus.service.signal(DBUS_PROP_IFACE, signature="sa{sv}as")
-    def PropertiesChanged(self, interface, changed, invalidated):
-        pass

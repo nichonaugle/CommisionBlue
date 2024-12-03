@@ -7,6 +7,7 @@ import dbus.mainloop.glib
 import struct
 import requests
 import array
+import logging
 from enum import Enum
 from .base import BaseService, BaseCharacteristic, BaseAdvertisement, BaseApplication
 from .util import find_adapter
@@ -32,118 +33,40 @@ AGENT_INTERFACE = "org.bluez.Agent1"
 SERVICE_UUID = "A07498CA-AD5B-474E-940D-16F1FBE7E8CD"
 CHARACTERISTIC_UUID_SSID = "51FF12BB-3ED8-46E5-AD5B-D64E2FEC021B"
 CHARACTERISTIC_UUID_PAYLOAD = "bfc0c92f-317d-4ba9-976b-cc11ce77b4ca"
+CHARACTERISTIC_UUID_AVALIABLE_SSIDS = "51FF12BB-3ED8-46E5-AD5B-D64E2F21B21B"
+CHARACTERISTIC_UUID_PUBLIC_KEY = "bfc0c92f-317d-4ba9-976b-cc11ce77b21B"
 
-AGENT_PATH = "/com/punchthrough/agent"
+AGENT_PATH = "/commission/agent"
 
-VivaldiBaseUrl = "XXXXXXXXXXXX"
-
-mainloop = None
-
-"""
-def main():
-    logging.basicConfig(level=logging.INFO)
-    # Set up the D-Bus main loop
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
-    # Register GATT service
-    bus = dbus.SystemBus()
-    # get the ble controller
-    adapter = find_adapter(bus)
-    print(adapter)
-    if not adapter:
-        logger.critical("GattManager1 interface not found")
-        return
-
-    adapter_obj = bus.get_object(BLUEZ_SERVICE_NAME, adapter)
-    print("adpater_obj: " + str(adapter_obj) + "\n")
-    service_manager = dbus.Interface(adapter_obj, GATT_MANAGER_IFACE)
-    print("service_manger: " + str(service_manager) + "\n")
-    
-    # Initialize GATT service and characteristics
-    wifi_service = BLEService(bus, 0, uuid=SERVICE_UUID, primary=True)
-
-    # Characteristics for Wi-Fi credentials and payload
-    ssid_char = BLECharacteristic(bus, 0, CHARACTERISTIC_UUID_SSID, ["read", "write"], wifi_service)
-    payload_char = BLECharacteristic(bus, 1, CHARACTERISTIC_UUID_PASS, ["read", "write"], wifi_service)
-
-    # Add characteristics to the service
-    wifi_service.add_characteristic(ssid_char)
-    wifi_service.add_characteristic(payload_char)
-    print(wifi_service)
-    # Start the GLib main loop to process D-Bus events
-    mainloop = GLib.MainLoop()
-
-    try:
-        service_manager.RegisterApplication(wifi_service.get_path(), {}, reply_handler=register_app_cb, error_handler=register_app_error_cb)
-        logging.info("GATT service registered successfully")
-    except dbus.exceptions.DBusException as e:
-        logging.error(f"Failed to register GATT service: {str(e)}")
-
-    adapter = find_adapter(bus)
-    print(adapter)
-    try:
-        mainloop.run()
-    except KeyboardInterrupt:
-        logging.info("GATT service interrupted, exiting...")
-        mainloop.quit()
-"""
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logHandler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logHandler.setFormatter(formatter)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
 
 class CommissioningService(BaseService):
-    """
-    Dummy test service that provides characteristics and descriptors that
-    exercise various API functionality.
-
-    """
-
     def __init__(self, bus, index):
         BaseService.__init__(self, bus, index, SERVICE_UUID, True)
-        self.add_characteristic(SsidCharacteristic(bus, 0, self))
-        self.add_characteristic(PayloadCharacteristic(bus, 1, self))
+        self.ssid_characteristic = SsidCharacteristic(bus, 0, self)
+        self.payload_characteristic = PayloadCharacteristic(bus, 1, self)
+        self.available_ssids_characteristic = AvaliableSsidsCharacteristic(bus, 2, self)
+        self.public_key_characteristic = PublicKeyCharacteristic(bus, 3, self)
+
+        self.add_characteristic(self.ssid_characteristic)
+        self.add_characteristic(self.payload_characteristic)
+        self.add_characteristic(self.available_ssids_characteristic)
+        self.add_characteristic(self.public_key_characteristic)
 
 class SsidCharacteristic(BaseCharacteristic):
     description = b"Plaintext SSID"
 
-    class State(Enum):
-        on = "ON"
-        off = "OFF"
-        unknown = "UNKNOWN"
-
-        @classmethod
-        def has_value(cls, value):
-            return value in cls._value2member_map_
-
-    power_options = {"ON", "OFF", "UNKNOWN"}
-
     def __init__(self, bus, index, service):
         BaseCharacteristic.__init__(
-            self, bus, index, CHARACTERISTIC_UUID_SSID, ["secure-read", "secure-write"], service,
+            self, bus, index, CHARACTERISTIC_UUID_SSID, ["encrypt-read", "encrypt-write"], service,
         )
-
-        self.value = [0xFF]
-        #self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
-
-    def ReadValue(self, options):
-        return self.value
-
-    def WriteValue(self, value, options):
-        logger.info("auto off write: " + repr(value))
-        cmd = bytes(value)
-
-        # write it to machine
-        logger.info("writing {cmd} to machine")
-        data = {"cmd": "autoOffMinutes", "time": struct.unpack("i", cmd)[0]}
-        self.value = value
-
-class PayloadCharacteristic(BaseCharacteristic):
-    description = b"Encrypted Password (With AES and ECC)"
-
-    def __init__(self, bus, index, service):
-        BaseCharacteristic.__init__(
-            self, bus, index, CHARACTERISTIC_UUID_PAYLOAD, ["encrypt-read", "encrypt-write"], service,
-        )
-
-        self.value = []
-        #self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
+        self.value = [0x0000]
 
     def ReadValue(self, options):
         return self.value
@@ -155,6 +78,53 @@ class PayloadCharacteristic(BaseCharacteristic):
         # write it to machine
         logger.info(f"writing {cmd} to machine")
         self.value = value
+
+class PayloadCharacteristic(BaseCharacteristic):
+    description = b"Encrypted Password (With AES and ECC)"
+
+    def __init__(self, bus, index, service):
+        BaseCharacteristic.__init__(
+            self, bus, index, CHARACTERISTIC_UUID_PAYLOAD, ["encrypt-read", "encrypt-write"], service,
+        )
+        self.value = [0x0000]
+
+    def ReadValue(self, options):
+        return self.value
+
+    def WriteValue(self, value, options):
+        logger.info("auto off write: " + repr(value))
+        cmd = bytes(value)
+
+        # write it to machine
+        logger.info(f"writing {cmd} to machine")
+        self.value = value
+
+class AvaliableSsidsCharacteristic(BaseCharacteristic):
+    description = b"Avaliable SSIDs"
+
+    def __init__(self, bus, index, service):
+        BaseCharacteristic.__init__(
+            self, bus, index, CHARACTERISTIC_UUID_AVALIABLE_SSIDS, ["secure-read"], service,
+        )
+
+        self.value = [0xFF]
+        #self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self)) Make a rescan characteristic?
+
+    def ReadValue(self, options):
+        return self.value
+
+class PublicKeyCharacteristic(BaseCharacteristic):
+    description = b"Public Key"
+
+    def __init__(self, bus, index, service):
+        BaseCharacteristic.__init__(
+            self, bus, index, CHARACTERISTIC_UUID_PUBLIC_KEY, ["secure-read"], service,
+        )
+
+        self.value = [0x69]
+        #self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self)) Make a regen characteristic?
+    def ReadValue(self, options):
+        return self.value
 
 class CommissioningAdvertisement(BaseAdvertisement):
     def __init__(self, bus, index):
@@ -168,11 +138,9 @@ class CommissioningAdvertisement(BaseAdvertisement):
         self.include_tx_power = True
 
 class BluebirdCommissioner():
-    # PASSES
     def __init__(self):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         self._mainloop = GLib.MainLoop()
-        self._running_mainloop = None #MainLoop()
         self._bus = dbus.SystemBus()
         self._adapter = find_adapter(self._bus)
         self._adapter_obj = self._bus.get_object(BLUEZ_SERVICE_NAME, self._adapter)
@@ -180,46 +148,55 @@ class BluebirdCommissioner():
         self._service_manager = dbus.Interface(self._adapter_obj, GATT_MANAGER_IFACE)
         self._advertising_manger = dbus.Interface(self._adapter_obj, LE_ADVERTISING_MANAGER_IFACE)
         self._bluez_obj = self._bus.get_object(BLUEZ_SERVICE_NAME, "/org/bluez")
-        # self._agent = Agent(self._bus, AGENT_PATH)
+        self._commissioning_service = CommissioningService(self._bus, 2)
         self.app = None
+        self.params = {
+            "avaliable_ssids": self._commissioning_service.payload_characteristic.ReadValue(None),
+            "ssid": self._commissioning_service.ssid_characteristic.ReadValue(None),
+            "payload": self._commissioning_service.payload_characteristic.ReadValue(None),
+            "public-key": self._commissioning_service.public_key_characteristic.ReadValue(None)
+        }
     
     def start(self):
         if not self._adapter:
-            print("GattManager1 interface not found") #logger.critical("GattManager1 interface not found")
+            logger.critical("GattManager1 interface not found")
             sys.exit(1)
         
-        self._adapter_props.Set("org.bluez.Adapter1", "Powered", dbus.Boolean(1)) # powered property on the controller to on
+        self._adapter_props.Set("org.bluez.Adapter1", "Powered", dbus.Boolean(1))
         advertisement = CommissioningAdvertisement(self._bus, 0)
         self.app = BaseApplication(self._bus)
-        self.app.add_service(CommissioningService(self._bus, 2))
+        self.app.add_service(self._commissioning_service)
         self._advertising_manger.RegisterAdvertisement(
             advertisement.get_path(),
             {},
             reply_handler=self.register_ad_cb,
             error_handler=self.register_ad_error_cb,
         )
-        #logger.info("Registering GATT application...")
         self._service_manager.RegisterApplication(
             self.app.get_path(),
             {},
             reply_handler=self.register_app_cb,
             error_handler=self.register_app_error_cb,
         )
-        # agent_manager = dbus.Interface(_bluez_obj, "org.bluez.AgentManager1")
-        # agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
-        # agent_manager.RequestDefaultAgent(AGENT_PATH)
+        agent_manager = dbus.Interface(self._bluez_obj, "org.bluez.AgentManager1")
+        agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
+        agent_manager.RequestDefaultAgent(AGENT_PATH)
         self._mainloop.run()
     
+    def close(self):
+        logger.info("Shutting off commissioner") 
+        self._mainloop.quit()
+
     def register_ad_cb(self):
-        print("Advertisement registered")
+        logger.info("Advertisement registered")
 
     def register_app_cb(self):
-        print("Application registered")
+        logger.info("Application registered")
 
     def register_ad_error_cb(self, error):
-        print("Failed to register advertisement: " + str(error))
+        logger.critical("Failed to register advertisement: " + str(error))
         self._mainloop.quit()
     
     def register_app_error_cb(self, error):
-        print("Failed to register application: " + str(error))
+        logger.critical("Failed to register application: " + str(error))
         self._mainloop.quit()
