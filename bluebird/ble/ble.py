@@ -199,6 +199,7 @@ class BluebirdCommissioner():
         )
         self._commissioning_service.ssid_characteristic.set_write_handler(self._handle_ssid_write)
         self._commissioning_service.payload_characteristic.set_write_handler(self._handle_password_write)
+        
         agent_manager = dbus.Interface(self._bluez_obj, "org.bluez.AgentManager1")
         agent_manager.RegisterAgent(AGENT_PATH, "NoInputNoOutput")
         agent_manager.RequestDefaultAgent(AGENT_PATH)
