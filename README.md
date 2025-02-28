@@ -1,3 +1,4 @@
+![bluebird open source BLE commissioning](images/bluebird.png)
 # **BLE Commissioning Service with ECDH and AES-GCM**
 
 This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Low Energy)** to allow devices like a Linux server or SBC (like a raspberry pi) to be **commissioned** securely with encrypted network credentials using **asymmetric** cryptography (ECDH with X25519 or X448) for the shared key and **symmetric** encryption (AES-256 in GCM mode) for sending credentials. The service advertises the public key over BLE, allowing a client (e.g., a Mobile application) to securely encrypt credentials that can only be decrypted by the server in a one way transaction. Protection measures are also improved through server side public key cycling if an unsuccessful commissioning attempt occurs and message authentication codes in the encrypted AES payload to prevent attacks. Furthermore, the selected encryption techniques optimize the avaliable resources on edge computers and most BLE protocols with minimal configuration required, streamlining implementation.
@@ -72,6 +73,14 @@ This open source Python service runs over **D-Bus** and uses **BLE (Bluetooth Lo
 | Public Key | Server's ECDH public key, hashed per use | Plaintext | Read |
 | Client Public Key | Client's ECDH public key, hashed per use | Plaintext | Write |
 | Client AES Payload | Client's AES Payload, hashed per use | Plaintext | Write |
+
+### Pre-requisites:
+Install the following packages
+sudo apt install build-essential libpython3-dev libdbus-1-dev libdbus-glib-1-dev libgirepository1.0-dev python3-gi python3-gi-cairo gir1.2-gtk-3.0 libcairo2-dev libxt-dev bluez
+Then install the requirements.txt
+pip install -r requirements.txt
+
+USe this to monitor bluez through dbus: sudo dbus-monitor --system "destination='org.bluez'" "sender='org.bluez'"
 ### Future Enhancements:
 
 -   Integration of additional security checks (e.g., HMAC for further integrity verification).
